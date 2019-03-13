@@ -1,1 +1,3 @@
-# Dissertation
+# Dissertation. 
+work in progress.
+

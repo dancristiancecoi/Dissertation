@@ -1,0 +1,73 @@
+\documentclass{l4proj}
+
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{subcaption} 
+
+
+\begin{document}
+
+%==============================================================================
+%% METADATA
+
+\title{Introduction}
+\author{Dan Cristian Cecoi}
+\date{3 March 2019}
+
+\maketitle
+
+
+\chapter{Introduction}
+
+Deep learning technologies are at the center of the current revolution in multimedia data analysis and artificial intelligence. Over the last years, convolutional neural networks have been shown to outperform previous state-of-the-art machine learning techniques for tasks such as object detection, human pose estimation and face detection. In the majority of cases, raw images are used to train deep learning models, which carries a big penalty in training time and efficiency, with weeks or months of training time in some cases.
+
+A solution for this problem, as demonstrated by \citet{Ozimek}, uses a biologically inspired software retina for pre-procesing of images with proven reduced memory requirements and training times without compromising on training quality. 
+
+In this paper we present an approach to autonomously control a commercial pan-tilt-zoom security camera to capture a set of retinal transformed images used for training of Convolutional Neural Networks (CNNs). 
+
+The development focuses on integrating an autonomous capture component into the graphical user interface described above. The autonomous capture component enables the PTZ Camera to identify and explore points of interest on an object and capture retinal transformed images with those points as the focus of attention. 
+
+\section{Problem Statement}
+
+ \citet{RyanWong} demonstrated a portable smartphone software retina capable of automatically detecting points of interests captured by a phone's video camera. However, at present, a tool for autonomously capturing data-sets of retinal transformed images using off the shelf PTZ cameras does not exist.
+ Therefore, an autonomous mechanism for the purpose of capturing retinal transformed data sets must be developed. This will be used for the data gathering step in a training pipeline for neural networks. 
+ 
+ 
+ \section{Aims}
+ 
+ There are three main objectives needed to be accomplished for the development of the autonomous capture mechanism:
+ 
+\vspace{0.2cm}  
+\begin{enumerate}
+    \item The development of a non-proprietary Camera Controller component used for driving the camera.
+    \item The development of an Autonomous Capture component that independently detects salient points on objects within the field of view and direct the camera towards those points.  
+    \item Storing the captured data-set and demonstrate its use by loading the data into the Data Management system and training an auto-encoder with it. This will be done in collaboration with Sean Tierney, a University of Glasgow MSci student working on the Data Management application. 
+    
+    
+\end{enumerate}
+
+
+\section{Motivation}
+ 
+
+
+ Biological vision systems are currently unrivaled by artificial visual systems for complex day to day tasks of an organism, such as navigating through the world, detecting dangers and identifying objects. Even the most simple tasks are still difficult for artificial systems. Due to this, biologically inspired vision systems seek to capture key aspects of the computational architecture of the brain and the sensor capabilities of the eye. Multidisciplinary inputs from other disciplines such as biology, neuroscience and cognitive science, will have a fundamental impact in the progress of computer vision. From the study of biological organisms, new types of computational paradigms can be achieved by providing a source of inspiration for new computational efficient and robust vision models.
+ 
+ With his biologically inspired software retina, \citet{Ozimek} has demonstrated an approach for pre-processing images into a data efficient form based on the human vision system. Using the retinal transformed image data was shown to drastically decrease training times, the storage requirements while not compromising on the accuracy of the deep network models. 
+ 
+ Due to the decrease in prices of digital cameras and increase of overall quality, there is now a demand for using cheap cameras for both research and industrial computer vision applications without having to resort to using highly specialized and expensive camera systems. 
+
+ The motivation for this work is to have an application which can use a cheap off-the-shelf security PTZ Camera for the purpose of identifying salient points on an object, select and explore the most important points using a saccade targeting based gaze control mechanism and collect retinal transformed data-sets with those points as the center of attention. This work extends on existing research on the biologically inspired software retina and work done by \citet{JianwenZhou} on a graphical user interface for manually controlling a Pan-Tilt-Zoom (PTZ) camera. 
+
+\chapter{Materials and Methods}
+
+\section{OpenCV}
+
+\section{GUI}
+
+\section{PTZ Camera}
+
+
+\bibliographystyle{abbrvnat}
+\bibliography{l4proj}
+\end{document}
