@@ -20,7 +20,7 @@
 
 \section{Local Feature Detection}
 
-Image local feature extraction is a dimensionality reduction technique where the resultant information provides a low dimensional description of the image contents. Local image features can be defined as a specific pattern that is unique to its immediately close pixels. These patterns are generally associated with a change of an image property or several properties simultaneously such as intensity, colour or texture. Local features are generally points but can be corners or blobs \citep{Tinne08}. These points serve as anchors whose neighbourhoods are represented by computed feature vectors. 
+Image local feature extraction is a dimensionality reduction technique where the resultant information provides a low dimensional description of the image contents. Local image features can be defined as a specific pattern that is unique to its immediately close pixels. These patterns are generally associated with a change of an image property or several properties simultaneously such as intensity, colour or texture. Local features are generally points but can be corners or blobs https://www.overleaf.com/project/5c45a45b79d0c14d4973ffff\citep{Tinne08}. These points serve as anchors whose neighbourhoods are represented by computed feature vectors. 
 
 Local feature extraction is the most used low-level visual representation due to robustness to occlusion and clutter, their distinctiveness, repeatability and efficiency with achievable real-time performance. They can be used in applications such as image alignment, object recognition and motion tracking.   
 
@@ -100,6 +100,12 @@ Where $L_{xx}(p, \sigma)$ is the convolution of the Gaussian second order deriva
 
 In SIFT, the approximation of Gaussian smoothing is achieved by using cascaded filters to detect scale-invariant characteristic points where the DoG is calculated on rescaled images. SURF pushes the approximation of the Laplacian of Gaussian even further and approximates it with box filters. These approximate second order Gaussian derivatives, and can be evaluated very efficiently using integral images, regardless of size, with the added benefit of removing the effects of aliasing when the images are sub-sampled \citep{Bay08}.
 
+
+\subsection{ORB}
+
+
+
+\subsection{Comparison of SURF and ORB}
 
 
 

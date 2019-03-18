@@ -4,7 +4,9 @@
 
 \usepackage{float}
 \usepackage{amsmath}
-\usepackage{subcaption} 
+\usepackage{caption,subcaption} 
+\usepackage{graphicx} 
+% \usepackage[showframe]{geometry}
 
 
 
@@ -12,7 +14,7 @@
 
 %==============================================================================
 %% METADATA
-\title{Autonomous Capture}
+\title{Biological model for real time gaze control of a commercial security camera}
 \author{Dan Cristian Cecoi}
 \date{27th March 2019}
 
@@ -285,6 +287,27 @@ The descriptor is based on the sum of Haar wavelet responses. The region around 
 
 Bay et. all estimate that SURF outperforms SIFT by 4 times on average in computation time while not sacrificing in quality and robustness.
 
+
+\subsection{Oriented FAST and rotated BRIEF}
+
+Though SURF is on average faster than SIFT, it still imposes a large computational penalty. There are currently GPU implementations of both SURF and SIFT that aim to overcome this limitation but they are not suitable to use for real-time feature detection on low-powered devices that have limited computational capabilities. This has lead researchers to develop a suitable replacement for SIFT and SURF that has both similar matching performance and is capable of being used in real-time applications on low-powered devices. 
+
+One such alternative that builds on the FAST key-point detector and BRIEF descriptor, was developed by \citet{Rublee:2011:OEA:2355573.2356268} called Oriented FAST and rotated BRIEF(ORB).
+
+Features from accelerated segment test (FAST) is a corner detection method. It uses a circle of 16 pixels around a point $p$. For each pixel in the circle the brightness is computed, and if more than half the pixels are either darker or brighter than $p$, then the point is selected as a key-point. While FAST features are widely used because of their computational properties, the FAST key-points are neither scale nor rotation invariant. To rectify this issue, in ORB, after the FAST points in the image are detected, a Harris corner measure is employed and the FAST key-points are ordered according to that measure, with top N points being selected. To make ORB features scale invariant, ORB employs a multi-scale image pyramid where for each level of the pyramid FAST features filtered by the Harris measure are produced. To make FAST features rotation invariant, the weighted intensity centroid of the patch around the detected feature is computed with orientation of the key-point being equal to the direction of the vector from the feature towards the centroid. 
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{l4template-master/images/FAST.jpg}
+    \caption{12 point segment corner detection test \citep{fast}.}
+    \label{fast}
+\end{figure}
+
+In ORB the descriptors are based on Binary Robust Independent Elementary Features (BRIEF) descriptors. To minimise the sensitivity of the descriptors to noise, the image is initially smoothed with a Gaussian kernel. Using the smoothed image, from a patch around a key-point with a set width and height, random pixel pairs are selected and intensity comparisons are done on them, assigning a value of 1 if the first pixel from the pair is brighter than the second pixel. For a 128-bit descriptor vector, this process is repeated 128 times for the same key-point. While this is fast to compute, BRIEF performs poorly with rotation. To allow BRIEF to be invariant to in-plane rotations of more than a few degrees, in ORB, a rotation matrix is computed using the orientation of the key-point and then the BRIEF descriptors are steered according to the orientation.
+
+\citet{Karami} compared the performance of SURF and ORB against different kinds of transformations and deformations such as scaling, rotation, noise and fish eye distortions. It was shown that ORB is the fastest algorithm, however it is outperformed by SURF in matching quality in most scenarios. Similarly, \citet{Tareen2018ACA} shows that ORB outperforms SURF both in the number of features detected and the computational time but suffers in matching quality. This makes ORB suitable for applications where the decrease in computational time is more important than the small matching penalty compared to more accurate feature detectors. This the main reason why ORB is used in our application, where the speed requirements take priority over the matching quality. 
+
+
 \section{Local Feature Matching}
 
 \subsection{Matching strategies}
@@ -323,12 +346,49 @@ To compute the homography between two image pairs, RANSAC robust estimation is a
 %==================================================================================================================================
 %==================================================================================================================================
 
+\section{Gaze Control Rework}
 
-\section{Gaze Control}
+One of the most important skills required for both biological organisms and artificial machines is the ability to direct the vision system towards a target. For humans, eye movements are split into mechanisms to either stabilize gaze or redirect gaze. The redirecting gaze mechanisms which are responsible for orienting the eyes to point to new locations are split into two classes: saccade movement and smooth pursuit movement. Saccades are rapid eye movements that allow us to quickly scan a visual scene and are characterised by quick, step-like rotations between fixation points, where the image of the visual target located at the periphery of the retina is moved to the center. Following each saccade, the eyes remain stationary at their new positions enabling the subsequent high-acuity detailed visual analysis at that location. The destinations of each saccade movement are selected by cognitive brain processes, with vision being dependent upon the information gathered during the pauses between saccades. Contrary to the rapid, step-like saccade movement, smooth pursuit eye movements slowly rotate the eyes in a linear fashion in order to keep a moving stimulus centered on the fovea.
 
-One of the most important skills required for both biological organisms and artificial machines is the ability to direct the vision system towards a target. For humans,  eye movements are split into mechanisms to either stabilize gaze or redirect gaze. The redirecting gaze mechanisms which are responsible for orienting the eyes to point to new locations are split into two classes: saccade movement and smooth pursuit movement. Saccades are rapid eye movements that allow us to quickly scan a visual scene and are characterised by quick, step-like rotations between fixation points, where the image of the visual target located at the perifery of the retina is moved to the center. Following each saccade, the eyes remain stationary at their new positions enabling the subsequent high-acuity detailed visual analysis at that location. The destinations of each saccade movement are selected by cognitive brain processes, with vision being dependent upon the information gathered during the pauses between saccades. Contrary to the rapid, step-like saccade movement, smooth pursuit eye movements slowly rotate the eyes in a linear fashion in order to keep a moving stimulus centered on the fovea. Because this work is focused on a stationary visual scene, where the only movement is done by the PTZ Camera, the gaze control will only be based on the saccade movement. 
 
-\citet{Fattah} used saccade targeting as a means for gaze control, in which the attention system selects new saccade movements based on computed SIFT local features in the view of the cameras. To stop the camera from returning to locations that have already been attended, an inhibition of return (IOR) mechanism was implemented by maintaining a list of already  visited points. Similarly, \citet{Ozimek} selects fixation points for the software retina by populating a saliency map with SIFT features while maintaining an inhibition of return map where each fixation point is represented by amplified Gaussian spanning the retinal foveal region. By subtracting the IOR map from the saliency map, points that were previously visited are discarded. These two approaches are an inspiration for the gaze control used in this paper. 
+The identification of relevant targets in the visual field is strongly interlinked with the behavioral and cognitive process called Attention. Attention can be either overt attention which involves orienting the body, head and eyes to foveate a stimulus and covert attention which is the act of shifting one's focus in the visual field without eye movements. A lot of research has been done for the purpose of understanding the selection process of spacial locations in the human attention with much evidence ( \citet{James1890}, \citet{Treissman1988}, \citet{Braun1998}, \citet{Itti2000} ) pointing towards a two-component framework for where in a visual scene attention is deployed. The most primitive one of the two, bottom-up mechanism, is an involuntary attention mechanism where the attention is grabbed by the most salient stimuli in our field of view with properties such as color, contrast and orientation being relevant. The top-down mechanism, on the other hand, occurs when we have a task in mind and direct the "spotlight of attention" under cognitive control. \citet{yarbus1967eye}, in his investigation of the correlation between the eye movement patterns and high-level cognitive factors, shows striking differences between eye-patterns based on the task the observer is instructed to perform while viewing a complex object. He concludes that the eyes fixate not on salient features of an image, but on those that provide the most information for the task at hand. 
+
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{l4template-master/images/Yarbus_The_Visitor.jpg}
+    \caption{Yarbus' investigation of eye patterns based on task.}
+    \label{Yarbus}
+\end{figure}
+
+
+
+
+
+Because this work is focused on a stationary visual scene, where the only movement is done by the PTZ Camera, the gaze control will only be based on the bottom-up overt mechanisms using saccade movements.
+
+
+Computational visual attention is a classic research area in computer vision and neuroscience, with numerous bottom-up and top-down models being proposed in literature. \citet{milanese1992} developed a bottom-up focus of attention system based on salient features extracted from the input image. In his approach, "conspicuity maps" that consist of interesting regions of the image are created from features that are distinct from their surroundings. These maps are then merged into a central saliency map, where sequences of attention shifts are generated based on the activity in the map. 
+
+\citet{Fattah} used bottom-up saccade targeting as a means for gaze control, in which the attention system selects new saccade movements based on computed SIFT local features in the view of the cameras. To stop the camera from returning to locations that have already been attended, an inhibition of return (IOR) mechanism was implemented by maintaining a list of already  visited points. Similarly, \citet{Ozimek} selects fixation points for the software retina by populating a saliency map with SIFT features while maintaining an inhibition of return map where each fixation point is represented by amplified Gaussian spanning the retinal foveal region. By subtracting the IOR map from the saliency map, points that were previously visited are discarded. 
+
+
+
+
+Unlike the works mentioned above where the saliency maps are populated with various hand-crafted features, the model developed by \citet{kruthiventi2015} predicts the pixel-wise saliency values for a given image using a fully convolutional neural network trained on eye-fixation data. 
+
+While using CNNs such as DeepFix gives promising results, this work is based on the approaches of \cite{Fattah} and \cite{Ozimek} due to their simplicity and good performance. 
+
+
+
+
+
+
+% \section{Gaze Control Original}
+
+% One of the most important skills required for both biological organisms and artificial machines is the ability to direct the vision system towards a target. For humans, eye movements are split into mechanisms to either stabilize gaze or redirect gaze. The redirecting gaze mechanisms which are responsible for orienting the eyes to point to new locations are split into two classes: saccade movement and smooth pursuit movement. Saccades are rapid eye movements that allow us to quickly scan a visual scene and are characterised by quick, step-like rotations between fixation points, where the image of the visual target located at the periphery of the retina is moved to the center. Following each saccade, the eyes remain stationary at their new positions enabling the subsequent high-acuity detailed visual analysis at that location. The destinations of each saccade movement are selected by cognitive brain processes, with vision being dependent upon the information gathered during the pauses between saccades. Contrary to the rapid, step-like saccade movement, smooth pursuit eye movements slowly rotate the eyes in a linear fashion in order to keep a moving stimulus centered on the fovea. Because this work is focused on a stationary visual scene, where the only movement is done by the PTZ Camera, the gaze control will only be based on the saccade movement. 
+
+% \citet{Fattah} used saccade targeting as a means for gaze control, in which the attention system selects new saccade movements based on computed SIFT local features in the view of the cameras. To stop the camera from returning to locations that have already been attended, an inhibition of return (IOR) mechanism was implemented by maintaining a list of already  visited points. Similarly, \citet{Ozimek} selects fixation points for the software retina by populating a saliency map with SIFT features while maintaining an inhibition of return map where each fixation point is represented by amplified Gaussian spanning the retinal foveal region. By subtracting the IOR map from the saliency map, points that were previously visited are discarded. These two approaches are an inspiration for the gaze control used in this paper. 
 
 %==================================================================================================================================
 %==================================================================================================================================
@@ -370,7 +430,7 @@ Beside basic Image or video Input/Output processing and displaying functionality
 
 Though there are other alternatives for image processing, none have the amount of built-in functionality OpenCV provides. Furthermore, because the ORB feature detection algorithm was developed by "OpenCV Labs", it solidified our decision of it being the framework of choice. 
 
-\section{Graphical User Interface}
+\section{Graphical User Interface} \label{GUIbackground}
 
 This project has inherited the Graphical User Interface (GUI) developed by \cite{JianwenZhou}. His work focused on integrating Ozimek's software retina into a tailored manual capture control interface capable of controlling the same camera used in this project. This GUI provides functionality for connecting to the camera and displaying a live view of the video stream. Additionally, it provides PTZ Controls which are implemented using the manufacturers proprietary HTML protocol. Finally, in terms of the software retina integration, it allows for the creation and saving of retinal transformed images and displaying the cortical and back-projected images.
 
@@ -386,6 +446,9 @@ In this project we seek to use this GUI as a baseline into which the Autonomous 
 
 %==================================================================================================================================
 \chapter{Implementation}
+
+\textit{[PLACEHOLDER] In this chapter we describe in detail the implementation of our system. Firstly we discuss the benefits and the limitations of the ONVIF Protocol. Secondly we describe the architecture of the CameraController component and the implementation of the Gaze Control. Finally, the overall architecture and describe how all the components tie in together.}
+
 \section{ONVIF Protocol}
 
 One of the key requirements concerning the Controller component was for it to be implemented in a non-proprietary protocol. Because it is supported natively by the PTZ Camera, and because it is by far the most popular open standard for the interface of physical IP-based security products, \textit{Open Network Video Interface Forum} (ONVIF) was chosen as the protocol in which this component will be implemented. ONVIF defines a standard for how IP Camera products within the surveillance industry can communicate with each other. By implementing ONVIF, the same instructions such as initiating a video stream or moving the camera can be used for a big number of devices across different manufacturers. Therefore, if in the future there is a decision to replace the camera with a different model that supports the ONVIF protocol, it wont be necessary to rewrite the base implementation of the Controller. 
@@ -534,12 +597,13 @@ As mentioned above, the camera moves continuously from the moment a PTZ Command 
 \end{figure}
 
 
-For the purpose of increasing the accuracy of the Camera movement, a simple retargeting algorithm was implemented. After a key point is selected and the camera translates to that point, local features are detected in the image after translation and the new position of the point is found. If the point is not found within the acceptable error margin from the image center, small incremental adjustments are performed using the smallest movement the camera is capable of until the point is within the acceptable distance. 
+For the purpose of increasing the accuracy of the Camera movement, a simple re-targeting algorithm was implemented. After a key point is selected and the camera translates to that point, local features are detected in the image after translation and the new position of the point is found. If the point is not found within the acceptable error margin from the image center, small incremental adjustments are performed using the smallest movement the camera is capable of until the point is within the acceptable distance. 
 
 
 
 % =======================================================================
 \section{Gaze Control}
+
 
 
 The gaze control mechanism in this work was inspired by the pre-attentive processing of visual information in the mammalian brain. In this subconscious process, an analysis of the visual information is performed on the entire visual field, detecting basic features of objects such as colors, contrasts and contours. After all this information is collected, the brain filters the information, selecting the information that has the highest saliency. 
@@ -587,40 +651,196 @@ Very frequently there are small regions with tightly packed key-points, which is
 
 Once the already visited focal points are discarded, the remaining key-point with the highest value is selected. 
 
-% =======================================================================
-\section{Autonomous Capture}
+
+
+
 
 \section{GUI Modifications}
+
+As mentioned in Section \ref{GUIbackground} the Graphical User Interface used in this project is a modified GUI developed by \citet{JianwenZhou} for his Manual Capture Control interface. This GUI is developed using the PyQt5 framework which is a set of Python bindings for the Qt framework used for creating cross-platform graphical user interfaces. 
+
+To integrate my components into the GUI, a set of new controls needed to be developed. The original GUI uses a Toolbox container to separate different functionality by tabs, with the PTZ Control, Zoom and Settings having a separate tab. 
+
+An additional tab that houses the controls needed for the Autonomous Capture was created with 3 different widgets inside. The first widget allows the user to enter the maximum number of key-points that they want the camera to detect and visit. The second widget is a push button that starts the AutonomousCapture thread. Once the AutonomousCapture is started, the button changes its text from "Start" to "Stop", and is used to stop the camera from capturing more images.   Finally, a check-box is provided which allows the user to choose if they want the local features detected in real time to be displayed in the video stream. 
+
+In the original implementation there is no error handling for the processing of data given by the user in the input boxes and there are issues with the connection functionality. One such example being the application crashing if the user does not input an IP address or PORT number before they click Connect. 
+These limitations have been fixed and the error handling was improved.  
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{l4template-master/images/guimodified.png}
+    \caption{Modified GUI showing the controls used for launching the AutonomousCapture functionality.}
+    \label{modifiedgui}
+\end{figure}
+
+
+
+\section{AutonomousCapture}
+
+This is the main class of the application, which interlinks the GUI with the Gaze Control, the Camera Controller and the Image-vector saving functionality. 
+
+
+To avoid the GUI freezing while the camera is capturing images and to allow for the dynamic display of the generated Cortical and Retinal images, AutoCapture has been implemented as a QThread. QThread objects manage one thread of control within PyQt programs. They are wrappers over native platform threads that provide additional functionality such as asynchronous signals, slots and event loops. It is possible to use native Python threads in PyQt application, but in order to interact with the main Qt thread, QThreads must be used.
+
+\subsection{Image Capture}
+
+In the initial stages of the development, images were captured using the OpenCV VideoCapture class which provides an API for video capturing from video files, image sequences or cameras. This object can be created by passing either the file path of the video file or the address of the network camera. One limitation of it is that if the connection is kept open, the video frames populate a buffer if they are not queried in a timely manner. As a temporary workaround, a new connection to the camera was being created every time a picture needed to be captured. This proved to be far too computationally expensive and a significant bottleneck for the performance of the application. 
+
+A solution to this problem is to reuse the video frames captured by the VideoThread used for displaying camera's video stream which creates a VideoCapture object and keeps the connection open for the entire duration of the application. Because the video frames need to be shared between two different threads, a thread safe data structure needs to be used. Furthermore, because AutonomousCapture thread consumes the video frames slower than the VideoThread produces them, a similar buffering issue as the one described above can arise. 
+
+The data structure chosen for this task is the \textit{Deque} which is a generalization of stacks and queue that supports thread-safe, memory efficient appends and pops with a performance of O(1). When a maximum length is specified and the dequeue becomes full, the same number of items are discarded from one end as the number of items appended to the other end. A small-sized dequeue is used to guarantee that the frames the AutoCapture thread consumes are as recent as possible. This proved to work very well, having good performance without having the need to re-create computationally expensive connections to the camera. 
+
+\subsection{Inter-thread communication}
+
+In a PyQt application, functions and methods are executed in response to events that can be generated by users interacting with widgets or by other QThreads. Each QThread can emit a 'signal' which is connected to a Python function defined in the main thread. 
+
+In AutoCapture 3 signals are defined. Two of the signals are responsible for transferring the generated cortical and back-projected images in order for them to be displayed dynamically. The last signal is used to communicate to the main thread that AutonomousCapture has finished running.
+
+To finish the execution of AutonomousCapture thread prematurely when the user presses on the Stop button, the main thread keeps a reference to the worker thread and changes a boolean flag inside the thread. This ensures that the thread finishes it's execution in a orderly manner after the previously computed imagevectors are saved to the hard-drive. 
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{l4template-master/images/overallarchitecture.png}
+    \caption{The overall architecture of the program}
+    \label{overallarchitecture}
+\end{figure}
+
+
+
+
+
+\subsection{Key-point targetting}
+Talk about the targetting algorithm and the communication between the GazeControl class. 
+
+
+\section{DataStore}
+Talk about how the data is stored
+
+\section{Software Retina}
+Talk about the software Retina
 
 
 \chapter{Evaluation and Analysis}
 
-\section{Gaze Control Evaluation}
-\subsection{Performance}
-\subsection{Quality}
+\section{Testing Environment}
+\subsection{Hardware}
+
+The performance of both the software retina and the detection of feature points is strongly dependent on the hardware used. To keep results consistent, for every test the hardware used both in the development and the subsequent evaluation has this specification:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l|l}
+Operating System & Ubuntu\\ \hline
+GPU & NVIDIA GTX 970 \\ \hline
+CPU & Intel Core i5-4690 CPU @ 3.50GHz\\ \hline
+Camera Model & LEFTEK MY-57S-UB \\ \hline
+Video Resolution & 1960x1080 pixels \\ \hline
+Software Retina & 5000 nodes
+
+\end{tabular}
+\end{table}
+
+
+\subsection{Materials}
+For the experiments, six scenes with a different object in each scene is created. Objects have been selected to represent different sizes, shapes and textures. Because the application can't isolate the objects from a cluttered environment, in each scene a white sheet is used to create a contrast between the object and the background.
+
+\begin{figure}[H]
+    \centering % <-- added
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/board_game.png}
+  \caption{Board game}
+  \label{boardgame}
+\end{subfigure}\hfil % <-- added
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/cif.png}
+  \caption{Cleaning product.}
+  \label{cleaningproduct}
+\end{subfigure}\hfil % <-- added
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/cup.png}
+  \caption{Tea cup.}
+  \label{teacup}
+\end{subfigure}
+
+\medskip
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/camera.png}
+  \caption{Film camera.}
+  \label{fig:4}
+\end{subfigure}\hfil % <-- added
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/gin.png}
+  \caption{Bottle of gin}
+  \label{ginbottle}
+\end{subfigure}\hfil % <-- added
+\begin{subfigure}{0.20\textwidth}
+  \includegraphics[width=\linewidth]{l4template-master/images/chewing_gum.png}
+  \caption{Pack of chewing gum.}
+  \label{chewinggum}
+\end{subfigure}
+\caption{Selection of objects used in the evaluation.}
+\label{objects}
+\end{figure}
+
+
+
+
 
 \section{Controller Model Evaluation}
+The first set of experiments concerns the verification of the Camera Controller and the Linear Regression models. The main aim is to measure the accuracy and reliability of the Camera Controller when used in a real-case scenario. For these results to be positive, the movement should be accurate enough for a focal point to be within the fovea's field of view which has a radius of approximately 45 pixels. The second aim is to compare the effectiveness of the Camera Controller with and without the re-targeting algorithm. 
 
-Once the models have been trained, the real-use case of the Camera Controller and the effectiveness of the Linear Regression models was tested. In order to get a good sample of key points with a good spread over the image, random key points were selected from the set. After the Camera movement finishes, the matching key point post translation is determined and the new distances are calculated. 
 
-Using the retargeting algorithm improved the quality of translation drastically with a mean error of 9 pixels for tilt and 14 pixels for pan compared to 17 and 55 pixels respectively. This corresponds to approximately 1\% error.
+
+
+
+
+\begin{itemize}
+    \item \textbf{Set-up:} Each object from Figure \ref{objects} is placed in front of the camera at a distance inversely proportional to their size. 
+    
+    \item \textbf{Methodology:} A set of feature points are detected. To select strong features with a good spread of distances from the image center, out of 10 strongest features detected a random feature is selected from the set. The pixel coordinates of the key-point is passed to the CameraController, which centers the camera on that area. Afterwards, the coordinates of the matching key point post translation is determined and the new displacement from the image center is calculated. For each scene from Figure \ref{objects} data from 200 translations was gathered. Finally, the re-targeting algorithm was removed and the experiment repeated in order to test it's effectiveness.
+    
+    
+    \item \textbf{Results:}  From Figure \ref{meanerror} we can observe that for all 6 scenes, the mean pan error is under 55 pixels which in a 1080x1920 image corresponds to a error of approximately 3\%. Furthermore, in 4 out of the 6 scenes the mean error is smaller than the foveas' radius. This result is drastically improved when the re-targeting algorithm is used, decreasing the mean error to under 27 pixels or 1.4\%. Tilt on the other hand has much better results than pan when the re-targeting algorithm is not used, having a mean error of less than 20 pixels in all 6 scenes, corresponding to less than 2 \% error. There is no improvement when the re-targeting algorithm is used with a difference of +- 2 pixels between these two modes. 
+    
+\end{itemize}
+
+Based on the limitations of the camera, the results described above are positive. Though in 2 out of 6 cases the horizontal error is slightly above the threshold, it is lowered when the re-targeting algorithm is used to make incremental adjustments after the initial movement finishes. The accuracy of the vertical movement is very good both with and without adjustments. This data justifies the use of the linear regression models and the re-targeting algorithm as in most cases the focal points will be comfortably within the radius of the fovea, which is the main requirement of this project. One interesting observation is the data from the coffee cup scene does not follow the same trend as the rest of the data. In the rest of the 5 scenes the magnitude of the error using the re-targeting algorithm is proportional to the error without the adjustments but this is not the case for the cup scene. This can be explained by the key-points being mismatched because of the complicated texture of the cup which in turn can corrupt the data. This shows a limitation of the re-targeting algorithm because it relies on the correct matching of key-points which is not a guarantee in this application. 
+
 
 
 
 
 \begin{figure}[H]
-  \begin{subfigure}[b]{0.5\textwidth}
-    \includegraphics[width=\textwidth]{l4template-master/images/without.png}
-    \caption{Error without retargeting.}
-    \label{errorwithoutretargetting}
+  \centering
+  \begin{subfigure}[b]{0.8\textwidth}
+    \includegraphics[width=\textwidth]{l4template-master/mean_pan_error.png}
+    \caption{Pan error.}
+    \label{panerror}
   \end{subfigure}
-  %
-  \begin{subfigure}[b]{0.5\textwidth}
-    \includegraphics[width=\textwidth]{l4template-master/images/with_retargetting.png}
-    \caption{Error with retargeting.}
-    \label{errorwithretargetting}
+  
+  \begin{subfigure}[b]{0.8\textwidth}
+    \includegraphics[width=\textwidth]{l4template-master/mean_tilt_error.png}
+    \caption{Tilt error.}
+    \label{tilterror}
   \end{subfigure}
+  
+  
+
+\caption{Mean translation error in pixels.}
+\label{meanerror}
 \end{figure}
+\section{Gaze Control Evaluation}
+\subsection{Performance}
+\subsection{Quality}
+
+
+
+
+
 
 \section{Overall Evaluation}
 
